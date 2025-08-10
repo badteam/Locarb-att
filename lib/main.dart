@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'pages/login_page.dart';
-import 'pages/home_page.dart';
+import 'pages/admin_page.dart';
+import 'pages/employee_home.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +15,7 @@ Future<void> main() async {
         apiKey: "AIzaSyBVvrJe9DzjRU5ieU4vnz0rQ-Vo4s7_CCg",
         authDomain: "locarb-attendance.firebaseapp.com",
         projectId: "locarb-attendance",
-        storageBucket: "locarb-attendance.appspot.com", // تم التصحيح هنا
+        storageBucket: "locarb-attendance.appspot.com",
         messagingSenderId: "155078748572",
         appId: "1:155078748572:web:e54a5156dee79f1243c059",
       ),
@@ -23,21 +24,29 @@ Future<void> main() async {
     await Firebase.initializeApp();
   }
 
-  await Hive.initFlutter();
-  await Hive.openBox('offline_queue');
-  runApp(const MyApp());
+  runApp(const App());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class App extends StatelessWidget {
+  const App({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Attendance MVP',
+      title: 'LoCarb Attendance',
       theme: ThemeData(useMaterial3: true),
-      home: const LoginPage(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (snap.data == null) return const LoginPage();
+          return const EmployeeHome();
+        },
+      ),
       routes: {
-        '/home': (_) => const HomePage(),
+        '/admin': (_) => const AdminPage(),
+        '/home': (_) => const EmployeeHome(),
       },
     );
   }
