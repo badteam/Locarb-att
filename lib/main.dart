@@ -10,13 +10,13 @@ Future<void> main() async {
 
   if (kIsWeb) {
     await Firebase.initializeApp(
-      options: const firebaseConfig = {
-  apiKey: "AIzaSyBVvrJe9DzjRU5ieU4vnz0rQ-Vo4s7_CCg",
-  authDomain: "locarb-attendance.firebaseapp.com",
-  projectId: "locarb-attendance",
-  storageBucket: "locarb-attendance.firebasestorage.app",
-  messagingSenderId: "155078748572",
-  appId: "1:155078748572:web:e54a5156dee79f1243c059"
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyBVvrJe9DzjRU5ieU4vnz0rQ-Vo4s7_CCg",
+        authDomain: "locarb-attendance.firebaseapp.com",
+        projectId: "locarb-attendance",
+        storageBucket: "locarb-attendance.appspot.com", // تم التصحيح هنا
+        messagingSenderId: "155078748572",
+        appId: "1:155078748572:web:e54a5156dee79f1243c059",
       ),
     );
   } else {
