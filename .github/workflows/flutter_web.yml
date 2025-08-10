@@ -1,0 +1,37 @@
+name: Build and Deploy Flutter Web to Firebase Hosting
+
+on:
+  push:
+    branches: [ main ]   # يشتغل لما يحصل Push على فرع main
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest  # السيرفر اللي هيبني المشروع
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4  # ينزل ملفات الريبو
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'  # الإصدار اللي هيشتغل عليه
+
+      - name: Scaffold Flutter project (if missing)
+        run: |
+          if [ ! -f "analysis_options.yaml" ]; then
+            flutter create .
+          fi
+
+      - name: Flutter Pub Get
+        run: flutter pub get  # تحميل الباكيجات
+
+      - name: Build Web
+        run: flutter build web --release  # بناء نسخة الويب
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          channelId: live
+          projectId: locarb-attendance
