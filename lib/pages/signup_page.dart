@@ -34,45 +34,77 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> register() async {
-    if (!_form.currentState!.validate()) return;
-    setState(() { loading = true; error = null; });
-    try {
-      final emailAlias = '${username.text.trim()}@company.com';
-      final userCred = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: emailAlias, password: password.text.trim());
-      final uid = userCred.user!.uid;
+  if (!_form.currentState!.validate()) return;
+  setState(() { loading = true; error = null; });
+  try {
+    final emailAlias = '${username.text.trim()}@company.com';
 
-      String? avatarUrl;
-      if (avatarBytes != null) {
-        final ref = FirebaseStorage.instance.ref('users/$uid/avatar.jpg');
-        await ref.putData(avatarBytes!, SettableMetadata(contentType: 'image/jpeg'));
-        avatarUrl = await ref.getDownloadURL();
-      }
+    // 0) هل فيه أدمن موجود أصلاً؟
+    final admins = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'admin')
+        .limit(1)
+        .get();
+    final bool noAdminYet = admins.docs.isEmpty;
 
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'uid': uid,
-        'username': username.text.trim(),
-        'fullName': fullName.text.trim(),
-        'email': email.text.trim().isEmpty ? null : email.text.trim(),
-        'branchId': branchId.text.trim(),
-        'avatarUrl': avatarUrl,
-        'role': 'employee',
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+    // 1) إنشاء حساب في Auth
+    final userCred = await FirebaseAuth.instance
+        .createUserWithEmailAndPassword(email: emailAlias, password: password.text.trim());
+    final uid = userCred.user!.uid;
 
-      await FirebaseAuth.instance.signOut();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب التسجيل للمراجعة')));
-      Navigator.pop(context);
-    } on FirebaseAuthException catch (e) {
-      setState(() { error = e.message; });
-    } catch (e) {
-      setState(() { error = e.toString(); });
-    } finally {
-      setState(() { loading = false; });
+    // 2) رفع الصورة (اختياري)
+    String? avatarUrl;
+    if (avatarBytes != null) {
+      final ref = FirebaseStorage.instance.ref('users/$uid/avatar.jpg');
+      await ref.putData(avatarBytes!, SettableMetadata(contentType: 'image/jpeg'));
+      avatarUrl = await ref.getDownloadURL();
     }
+
+    // 3) تحديد الدور والحالة
+    final role = noAdminYet ? 'admin' : 'employee';
+    final status = noAdminYet ? 'approved' : 'pending';
+
+    // 4) جسم البيانات
+    final data = {
+      'uid': uid,
+      'username': username.text.trim(),
+      'fullName': fullName.text.trim(),
+      'email': email.text.trim().isEmpty ? null : email.text.trim(),
+      'branchId': branchId.text.trim(),
+      'avatarUrl': avatarUrl,
+      'role': role,
+      'status': status,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    // 5) الكتابة في مسارين:
+    final batch = FirebaseFirestore.instance.batch();
+    final rootUserDoc = FirebaseFirestore.instance.collection('users').doc(uid);
+    final companyUserDoc = FirebaseFirestore.instance
+        .collection('companies').doc('default_company')
+        .collection('users').doc(uid);
+
+    batch.set(rootUserDoc, data);
+    batch.set(companyUserDoc, data);
+    await batch.commit();
+
+    // 6) خروج ورسالة
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(noAdminYet
+          ? 'تم إنشاء حساب الأدمن واعتماده تلقائيًا. سجّل دخولك الآن.'
+          : 'تم إرسال طلب التسجيل للمراجعة'),
+    ));
+    Navigator.pop(context);
+  } on FirebaseAuthException catch (e) {
+    setState(() { error = e.message; });
+  } catch (e) {
+    setState(() { error = e.toString(); });
+  } finally {
+    setState(() { loading = false; });
   }
+}
 
   @override
   Widget build(BuildContext context) {
